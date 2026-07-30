@@ -73,39 +73,6 @@
             margin-top: 6px;
         }
 
-        /* ========== 设置按钮 ========== */
-        .settings-bar {
-            display: flex;
-            justify-content: flex-end;
-            margin-bottom: 16px;
-        }
-        .btn-settings {
-            background: var(--card);
-            border: 1px solid var(--border);
-            color: var(--text-secondary);
-            padding: 8px 16px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 13px;
-            transition: var(--transition);
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .btn-settings:hover {
-            border-color: var(--primary);
-            color: var(--primary);
-        }
-        .config-status {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-left: 8px;
-        }
-        .config-status.ok { background: var(--success); }
-        .config-status.no { background: var(--error); }
-
         /* ========== 表单卡片 ========== */
         .form-card {
             background: var(--card);
@@ -432,110 +399,6 @@
             color: var(--primary);
         }
 
-        /* ========== 设置弹窗 ========== */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: 900;
-            backdrop-filter: blur(4px);
-            animation: fadeIn 0.2s ease;
-        }
-        .modal-overlay.show {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        .modal {
-            background: var(--card);
-            border-radius: var(--radius);
-            padding: 32px;
-            max-width: 480px;
-            width: 100%;
-            box-shadow: var(--shadow-lg);
-            max-height: 90vh;
-            overflow-y: auto;
-            animation: slideUp 0.3s ease;
-        }
-        @keyframes slideUp {
-            from { transform: translateY(20px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-        .modal h2 {
-            font-size: 20px;
-            margin-bottom: 8px;
-        }
-        .modal-desc {
-            color: var(--text-secondary);
-            font-size: 14px;
-            margin-bottom: 20px;
-            line-height: 1.7;
-        }
-        .modal-desc code {
-            background: var(--bg);
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 13px;
-        }
-        .modal .form-group {
-            margin-bottom: 16px;
-        }
-        .modal .form-input {
-            font-size: 14px;
-        }
-        .modal-actions {
-            display: flex;
-            gap: 12px;
-            margin-top: 24px;
-        }
-        .modal-actions button {
-            flex: 1;
-            padding: 10px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: var(--transition);
-            border: none;
-        }
-        .btn-save {
-            background: var(--primary);
-            color: white;
-        }
-        .btn-save:hover {
-            background: var(--primary-hover);
-        }
-        .btn-close-modal {
-            background: var(--bg);
-            color: var(--text);
-            border: 1px solid var(--border);
-        }
-        .btn-close-modal:hover {
-            border-color: var(--text-secondary);
-        }
-        .modal .step-list {
-            list-style: none;
-            padding: 0;
-            margin: 12px 0;
-        }
-        .modal .step-list li {
-            padding: 8px 12px;
-            border-left: 3px solid var(--primary);
-            margin-bottom: 6px;
-            background: var(--bg);
-            border-radius: 0 6px 6px 0;
-            font-size: 13px;
-            line-height: 1.6;
-        }
-        .modal .step-list li strong {
-            color: var(--primary);
-        }
 
         /* ========== 响应式 ========== */
         @media (max-width: 600px) {
@@ -554,45 +417,6 @@
     <!-- ========== Toast 提示 ========== -->
     <div id="toast" class="toast"></div>
 
-    <!-- ========== 设置弹窗 ========== -->
-    <div id="modalOverlay" class="modal-overlay">
-        <div class="modal">
-            <h2>⚙️ 设置问卷</h2>
-            <p class="modal-desc">
-                填写你的 GitHub 信息，这样别人提交的问卷就会自动存到你的仓库里。
-            </p>
-
-            <div style="background: var(--primary-light); border-radius: 8px; padding: 16px; margin-bottom: 20px; font-size: 13px; line-height: 1.7;">
-                <strong>📖 如何获取 Token？（跟着这几步做）</strong>
-                <ol style="margin-top: 8px; padding-left: 20px;">
-                    <li>打开 <a href="https://github.com/settings/tokens" target="_blank" style="color: var(--primary);">github.com/settings/tokens</a>（需要登录 GitHub）</li>
-                    <li>点击 <strong>"Generate new token" → "Fine-grained token"</strong></li>
-                    <li>"Token name" 随便填，比如 <code>survey-token</code></li>
-                    <li>"Repository access" 选 <strong>"Only select repositories"</strong>，选中你这问卷的仓库</li>
-                    <li>"Permissions" 展开 <strong>"Issues"</strong>，设为 <strong>"Read and write"</strong></li>
-                    <li>点击 <strong>"Generate token"</strong>，复制那一串字符（以 <code>github_pat_</code> 开头）</li>
-                    <li>把复制的内容粘贴到下面的 "Token" 输入框里</li>
-                </ol>
-            </div>
-
-            <div class="form-group">
-                <label class="form-label">GitHub Token <span class="required">*</span></label>
-                <input type="password" id="configToken" class="form-input" placeholder="粘贴你刚刚生成的 Token（以 github_pat_ 开头）">
-            </div>
-            <div class="form-group">
-                <label class="form-label">GitHub 用户名 <span class="required">*</span></label>
-                <input type="text" id="configUser" class="form-input" placeholder="你的 GitHub 用户名，如 zhangsan">
-            </div>
-            <div class="form-group">
-                <label class="form-label">仓库名 <span class="required">*</span></label>
-                <input type="text" id="configRepo" class="form-input" placeholder="你存放这个网页的仓库名，如 my-survey">
-            </div>
-            <div class="modal-actions">
-                <button class="btn-close-modal" onclick="closeConfig()">取消</button>
-                <button class="btn-save" onclick="saveConfig()">保存设置</button>
-            </div>
-        </div>
-    </div>
 
     <div class="container">
 
@@ -601,14 +425,6 @@
             <div class="header-icon">📋</div>
             <h1>问卷收集</h1>
             <p>您的反馈对我们非常重要，感谢您花时间填写</p>
-        </div>
-
-        <!-- ========== 设置栏 ========== -->
-        <div class="settings-bar">
-            <button class="btn-settings" onclick="openConfig()">
-                ⚙️ 设置
-                <span id="configDot" class="config-status no"></span>
-            </button>
         </div>
 
         <!-- ========== 主表单 ========== -->
@@ -881,77 +697,14 @@
         }
 
         // ================================================================
-        //  2. 配置管理（优先用嵌入配置，其次 localStorage）
+        //  2. 获取配置（直接使用嵌入的 GitHub 信息）
         // ================================================================
         function loadConfig() {
-            // 如果代码里已经填了 GitHub 信息，优先使用（别人填表时不需要设置）
-            if (EMBEDDED_CONFIG.token && EMBEDDED_CONFIG.user && EMBEDDED_CONFIG.repo) {
-                return { ...EMBEDDED_CONFIG };
-            }
-            // 否则从浏览器本地存储读取（方便你自己在页面上改）
-            const token = localStorage.getItem('survey_gh_token') || '';
-            const user = localStorage.getItem('survey_gh_user') || '';
-            const repo = localStorage.getItem('survey_gh_repo') || '';
-            return { token, user, repo };
-        }
-
-        function saveConfigToStorage(token, user, repo) {
-            localStorage.setItem('survey_gh_token', token);
-            localStorage.setItem('survey_gh_user', user);
-            localStorage.setItem('survey_gh_repo', repo);
-        }
-
-        function updateConfigStatus() {
-            const cfg = loadConfig();
-            const dot = document.getElementById('configDot');
-            const isEmbedded = EMBEDDED_CONFIG.token && EMBEDDED_CONFIG.user && EMBEDDED_CONFIG.repo;
-            if (cfg.token && cfg.user && cfg.repo) {
-                dot.className = 'config-status ok';
-                dot.title = isEmbedded ? '已嵌入配置，可直接使用' : '已配置';
-            } else {
-                dot.className = 'config-status no';
-                dot.title = '未配置';
-            }
+            return { ...EMBEDDED_CONFIG };
         }
 
         // ================================================================
-        //  3. 设置弹窗
-        // ================================================================
-        function openConfig() {
-            const cfg = loadConfig();
-            document.getElementById('configToken').value = cfg.token;
-            document.getElementById('configUser').value = cfg.user;
-            document.getElementById('configRepo').value = cfg.repo;
-            document.getElementById('modalOverlay').classList.add('show');
-        }
-
-        function closeConfig() {
-            document.getElementById('modalOverlay').classList.remove('show');
-        }
-
-        function saveConfig() {
-            const token = document.getElementById('configToken').value.trim();
-            const user = document.getElementById('configUser').value.trim();
-            const repo = document.getElementById('configRepo').value.trim();
-
-            if (!token || !user || !repo) {
-                showToast('请填写所有必填项', 'error');
-                return;
-            }
-
-            saveConfigToStorage(token, user, repo);
-            updateConfigStatus();
-            closeConfig();
-            showToast('✅ 设置已保存！现在可以提交问卷了', 'success');
-        }
-
-        // 点击遮罩关闭弹窗
-        document.getElementById('modalOverlay').addEventListener('click', (e) => {
-            if (e.target === e.currentTarget) closeConfig();
-        });
-
-        // ================================================================
-        //  4. 表单提交 → GitHub Issues
+        //  3. 表单提交 → GitHub Issues
         // ================================================================
         async function submitForm() {
             const btn = document.getElementById('btnSubmit');
@@ -979,10 +732,10 @@
             if (!satisfaction) { showToast('请选择满意度', 'error'); return; }
             if (!recommend) { showToast('请选择是否推荐', 'error'); return; }
 
-            // 校验配置
+            // 校验配置（使用代码内嵌的 GitHub 信息）
             const cfg = loadConfig();
             if (!cfg.token || !cfg.user || !cfg.repo) {
-                showToast('⚠️ 请先点击右上角"设置"，填写 GitHub 信息', 'warning');
+                showToast('⚠️ 系统配置错误，请联系管理员', 'error');
                 return;
             }
 
@@ -1102,7 +855,6 @@
         // ================================================================
         //  7. 初始化
         // ================================================================
-        updateConfigStatus();
 
         // 选中选项时加亮效果
         document.querySelectorAll('.radio-option, .checkbox-option').forEach(opt => {
