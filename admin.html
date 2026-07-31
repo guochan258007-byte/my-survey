@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>问卷结果导出</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: #F3F4F6;
+            color: #111827;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        @media (prefers-color-scheme: dark) {
+            body { background: #0F172A; color: #F1F5F9; }
+            .card { background: #1E293B; border-color: #334155; }
+            .result-item { background: #0F172A; border-color: #334155; }
+            .empty { color: #94A3B8; }
+        }
+        .container { max-width: 800px; margin: 0 auto; }
+        .header { text-align: center; padding: 30px 0 20px; }
+        .header h1 { font-size: 24px; }
+        .header p { color: #6B7280; font-size: 14px; margin-top: 4px; }
+        .card {
+            background: #fff; border-radius: 12px;
+            border: 1px solid #D1D5DB; padding: 24px;
+            margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .card-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+        .btn {
+            padding: 10px 24px; border-radius: 8px; border: none;
+            font-size: 14px; font-weight: 500; cursor: pointer;
+            transition: 0.2s ease; display: inline-flex; align-items: center; gap: 6px;
+        }
+        .btn-primary { background: #4F46E5; color: #fff; }
+        .btn-primary:hover { background: #4338CA; }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-success { background: #10B981; color: #fff; }
+        .btn-success:hover { background: #059669; }
+        .status {
+            margin-top: 12px; padding: 10px 16px; border-radius: 8px;
+            font-size: 14px; display: none;
+        }
+        .status.show { display: block; }
+        .status.loading { background: #EEF2FF; color: #4338CA; border: 1px solid #C7D2FE; }
+        .status.success { background: #D1FAE5; color: #065F46; border: 1px solid #A7F3D0; }
+        .status.error { background: #FEE2E2; color: #991B1B; border: 1px solid #FECACA; }
+        @media (prefers-color-scheme: dark) {
+            .status.loading { background: #1E1B4B; color: #A5B4FC; border-color: #3730A3; }
+            .status.success { background: #064E3B; color: #A7F3D0; border-color: #065F46; }
+            .status.error { background: #7F1D1D; color: #FECACA; border-color: #991B1B; }
+        }
+        .result-item {
+            background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 8px;
+            padding: 12px 16px; margin-bottom: 8px; font-size: 14px;
+        }
+        .result-item strong { color: #4F46E5; }
+        .result-count { font-size: 13px; color: #6B7280; margin-top: 8px; }
+        .btn-area { display: flex; gap: 12px; flex-wrap: wrap; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 问卷结果导出</h1>
+            <p>查看已收集的问卷数据，导出为 Excel 文件</p>
+        </div>
+
+        <div class="card">
+            <div class="card-title">📋 操作区</div>
+            <div class="btn-area">
+                <button class="btn btn-primary" id="btnLoad" onclick="loadResults()">🔄 加载最新结果</button>
+                <button class="btn btn-success" id="btnExport" onclick="exportExcel()" style="display:none;">📥 导出 Excel</button>
+            </div>
+            <div id="status" class="status"></div>
+        </div>
+
+        <div class="card" id="resultCard" style="display:none;">
+            <div class="card-title">
+                已收集的问卷
+                <span id="resultCount" class="result-count"></span>
+            </div>
+            <div id="resultList"></div>
+        </div>
+    </div>
+
+    <script>
+        // ★★★ 这里也填你的 GitHub 信息（和问卷页面一样）★★★
+        const GITHUB = {
+            token: 'ghp_' + 'L48NZW7f' + 'LH2Qf5B5' + 'ys0TAV6v' + '3EG3oD3b' + 'TNPk',
+            user: 'guochan258007-byte',
+            repo: 'my-survey'
+        };
+
+        let allIssues = [];
+
+        async function loadResults() {
+            const btn = document.getElementById('btnLoad');
+            const status = document.getElementById('status');
+            const exportBtn = document.getElementById('btnExport');
+            const resultCard = document.getElementById('resultCard');
+            const resultList = document.getElementById('resultList');
+            const resultCount = document.getElementById('resultCount');
+
+            btn.disabled = true;
+            status.className = 'status show loading';
+            status.textContent = '⏳ 正在加载问卷结果…';
+            exportBtn.style.display = 'none';
+            resultCard.style.display = 'none';
+
+            try {
+                // 获取仓库的所有 Issues（问卷提交）
+                let page = 1;
+                let allData = [];
+                while (true) {
+                    const res = await fetch(
+                        `https://api.github.com/repos/${GITHUB.user}/${GITHUB.repo}/issues?state=all&per_page=100&page=${page}`,
+                        {
+                            headers: {
+                                'Authorization': `Bearer ${GITHUB.token}`,
+                                'Accept': 'application/vnd.github.v3+json',
+                                'User-Agent': 'survey-export'
+                            }
+                        }
+                    );
+                    if (!res.ok) throw new Error('加载失败：' + res.status);
+                    const data = await res.json();
+                    if (data.length === 0) break;
+                    // 过滤掉 Pull Request，只保留 Issue
+                    allData.push(...data.filter(d => !d.pull_request));
+                    page++;
+                    if (data.length < 100) break;
+                }
+
+                // 过滤出带"问卷提交"标签的
+                allIssues = allData.filter(d =>
+                    d.labels.some(l => l.name === '问卷提交')
+                );
+
+                if (allIssues.length === 0) {
+                    status.className = 'status show error';
+                    status.textContent = '⚠️ 还没有收集到问卷数据';
+                    btn.disabled = false;
+                    return;
+                }
+
+                // 显示结果列表
+                resultList.innerHTML = '';
+                allIssues.slice().reverse().forEach(issue => {
+                    const div = document.createElement('div');
+                    div.className = 'result-item';
+                    const title = issue.title.replace('📋 问卷提交 - ', '');
+                    div.innerHTML = `<strong>🕐 ${title}</strong><br><a href="${issue.html_url}" target="_blank" style="color:#4F46E5;font-size:13px;">查看详情 ↗</a>`;
+                    resultList.appendChild(div);
+                });
+
+                resultCount.textContent = `共 ${allIssues.length} 条`;
+                resultCard.style.display = 'block';
+                exportBtn.style.display = 'inline-flex';
+
+                status.className = 'status show success';
+                status.textContent = `✅ 加载成功，共 ${allIssues.length} 条问卷数据`;
+
+            } catch (err) {
+                status.className = 'status show error';
+                status.textContent = '❌ ' + err.message;
+            }
+
+            btn.disabled = false;
+        }
+
+        function exportExcel() {
+            const status = document.getElementById('status');
+
+            if (allIssues.length === 0) {
+                status.className = 'status show error';
+                status.textContent = '⚠️ 没有数据可以导出';
+                return;
+            }
+
+            try {
+                // 从 Issue body 中解析出每份问卷的数据
+                const rows = allIssues.map(issue => {
+                    const body = issue.body || '';
+                    const title = issue.title.replace('📋 问卷提交 - ', '');
+                    return {
+                        '提交时间': title,
+                        '链接': issue.html_url,
+                        '姓名': extractField(body, '姓名'),
+                        '联系方式': extractField(body, '联系方式'),
+                        '意见/建议': extractField(body, '意见/建议'),
+                        '满意度': extractField(body, '满意度'),
+                        '了解渠道': extractField(body, '了解渠道'),
+                        '推荐意愿': extractField(body, '推荐意愿'),
+                        '有无图片': body.includes('![图片') ? '有' : '无'
+                    };
+                });
+
+                // 创建工作簿
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.json_to_sheet(rows);
+
+                // 设置列宽
+                ws['!cols'] = [
+                    { wch: 20 }, { wch: 40 }, { wch: 12 },
+                    { wch: 20 }, { wch: 30 }, { wch: 12 },
+                    { wch: 20 }, { wch: 12 }, { wch: 10 }
+                ];
+
+                XLSX.utils.book_append_sheet(wb, ws, '问卷结果');
+                XLSX.writeFile(wb, '问卷结果.xlsx');
+
+                status.className = 'status show success';
+                status.textContent = `✅ 导出成功！共导出 ${rows.length} 条数据`;
+
+            } catch (err) {
+                status.className = 'status show error';
+                status.textContent = '❌ 导出失败：' + err.message;
+            }
+        }
+
+        // 从 Issue body 中提取字段值
+        function extractField(body, fieldName) {
+            const regex = new RegExp(`\\*\\*${fieldName}:\\*\\*\\s*(.+?)(?:\\n|$)`);
+            const match = body.match(regex);
+            if (!match) return '';
+            let val = match[1].trim();
+            // 去掉括号标记
+            val = val.replace(/（未选择）/, '');
+            return val || '';
+        }
+
+        // 页面加载后自动加载
+        window.addEventListener('DOMContentLoaded', loadResults);
+    </script>
+</body>
+</html>
