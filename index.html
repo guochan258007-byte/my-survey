@@ -541,7 +541,7 @@
                 <div class="section-title">🖼️ 上传图片</div>
                 <div class="form-group">
                     <label class="form-label">上传相关截图或照片</label>
-                    <div class="form-hint">支持 JPG、PNG 格式，每张不超过 5MB，最多 3 张</div>
+                    <div class="form-hint">支持 JPG、PNG 格式（无大小限制），最多 3 张</div>
                     <div class="upload-area" id="uploadArea">
                         <input type="file" id="fileInput" accept="image/*" multiple>
                         <div class="upload-icon">📤</div>
@@ -594,7 +594,6 @@
         const uploadArea = document.getElementById('uploadArea');
         const previewGrid = document.getElementById('previewGrid');
         const MAX_IMAGES = 3;
-        const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 
         // 点击上传区域 → 触发文件选择
         uploadArea.addEventListener('click', () => fileInput.click());
@@ -628,46 +627,20 @@
             for (let i = 0; i < toProcess; i++) {
                 const file = files[i];
                 if (!file.type.startsWith('image/')) continue;
-                if (file.size > MAX_IMAGE_SIZE) {
-                    showToast('图片 "' + file.name + '" 超过 5MB 限制，已跳过', 'warning');
-                    continue;
-                }
                 const reader = new FileReader();
                 reader.onload = (e) => {
-                    // 压缩图片
-                    compressImage(e.target.result, 800, 0.8, (compressed) => {
-                        uploadedImages.push({
-                            dataUrl: compressed,
-                            name: file.name,
-                            size: compressed.length
-                        });
-                        updatePreview();
+                    uploadedImages.push({
+                        dataUrl: e.target.result,
+                        name: file.name,
+                        size: e.target.result.length
                     });
+                    updatePreview();
                 };
                 reader.readAsDataURL(file);
             }
             if (files.length > toProcess) {
                 showToast('最多 ' + MAX_IMAGES + ' 张，多余图片已忽略', 'warning');
             }
-        }
-
-        // 压缩图片（canvas 方式）
-        function compressImage(dataUrl, maxWidth, quality, callback) {
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                let w = img.width, h = img.height;
-                if (w > maxWidth) {
-                    h = h * (maxWidth / w);
-                    w = maxWidth;
-                }
-                canvas.width = w;
-                canvas.height = h;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, w, h);
-                callback(canvas.toDataURL('image/jpeg', quality));
-            };
-            img.src = dataUrl;
         }
 
         // 更新图片预览
