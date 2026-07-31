@@ -84,6 +84,7 @@
                 <span id="resultCount" class="result-count"></span>
             </div>
             <div id="resultList"></div>
+            <div id="previewData" style="display:none;"></div>
         </div>
     </div>
 
@@ -96,6 +97,7 @@
         };
 
         let allIssues = [];
+        let parsedRows = [];
 
         async function loadResults() {
             const btn = document.getElementById('btnLoad');
@@ -110,6 +112,7 @@
             status.textContent = '⏳ 正在加载问卷结果…';
             exportBtn.style.display = 'none';
             resultCard.style.display = 'none';
+            parsedRows = [];
 
             try {
                 // 获取仓库的所有 Issues（问卷提交）
@@ -129,7 +132,6 @@
                     if (!res.ok) throw new Error('加载失败：' + res.status);
                     const data = await res.json();
                     if (data.length === 0) break;
-                    // 过滤掉 Pull Request，只保留 Issue
                     allData.push(...data.filter(d => !d.pull_request));
                     page++;
                     if (data.length < 100) break;
@@ -147,6 +149,9 @@
                     return;
                 }
 
+                // 解析每份问卷的数据
+                parsedRows = allIssues.map(issue => parseIssue(issue));
+
                 // 显示结果列表
                 resultList.innerHTML = '';
                 allIssues.slice().reverse().forEach(issue => {
@@ -156,6 +161,20 @@
                     div.innerHTML = `<strong>🕐 ${title}</strong><br><a href="${issue.html_url}" target="_blank" style="color:#4F46E5;font-size:13px;">查看详情 ↗</a>`;
                     resultList.appendChild(div);
                 });
+
+                // 显示解析预览
+                const previewDiv = document.getElementById('previewData');
+                if (parsedRows.length > 0) {
+                    const first = parsedRows[0];
+                    let html = '<div style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;padding:12px 16px;margin-top:12px;font-size:13px;">';
+                    html += '<strong style="color:#4F46E5;">📄 数据预览（第一条）</strong><br>';
+                    for (const [key, val] of Object.entries(first)) {
+                        html += `<span style="color:#6B7280;">${key}：</span>${val || '（空）'}<br>`;
+                    }
+                    html += '</div>';
+                    previewDiv.innerHTML = html;
+                    previewDiv.style.display = 'block';
+                }
 
                 resultCount.textContent = `共 ${allIssues.length} 条`;
                 resultCard.style.display = 'block';
@@ -172,36 +191,59 @@
             btn.disabled = false;
         }
 
+        // 从 Issue body 中逐行解析数据
+        function parseIssue(issue) {
+            const body = issue.body || '';
+            const title = issue.title.replace('📋 问卷提交 - ', '');
+            const lines = body.split('\n');
+
+            let data = {
+                '提交时间': title,
+                '链接': issue.html_url,
+                '姓名': '',
+                '联系方式': '',
+                '意见/建议': '',
+                '满意度': '',
+                '了解渠道': '',
+                '推荐意愿': '',
+                '有无图片': body.includes('![图片') ? '有' : '无'
+            };
+
+            for (const line of lines) {
+                const trimmed = line.trim();
+
+                // 匹配 "- **字段名：** 值" 的格式
+                const match = trimmed.match(/^-\s+\*\*(.+?)：\*\*\s*(.*)$/);
+                if (match) {
+                    const fieldName = match[1].trim();
+                    const fieldValue = match[2].trim();
+
+                    // 根据字段名映射到 data 的 key
+                    if (fieldName === '姓名') data['姓名'] = fieldValue;
+                    else if (fieldName === '联系方式') data['联系方式'] = fieldValue;
+                    else if (fieldName === '意见/建议') data['意见/建议'] = fieldValue;
+                    else if (fieldName === '满意度') data['满意度'] = fieldValue;
+                    else if (fieldName === '了解渠道') data['了解渠道'] = fieldValue.replace(/（未选择）/g, '');
+                    else if (fieldName === '推荐意愿') data['推荐意愿'] = fieldValue;
+                }
+            }
+
+            return data;
+        }
+
         function exportExcel() {
             const status = document.getElementById('status');
 
-            if (allIssues.length === 0) {
+            if (parsedRows.length === 0) {
                 status.className = 'status show error';
                 status.textContent = '⚠️ 没有数据可以导出';
                 return;
             }
 
             try {
-                // 从 Issue body 中解析出每份问卷的数据
-                const rows = allIssues.map(issue => {
-                    const body = issue.body || '';
-                    const title = issue.title.replace('📋 问卷提交 - ', '');
-                    return {
-                        '提交时间': title,
-                        '链接': issue.html_url,
-                        '姓名': extractField(body, '姓名'),
-                        '联系方式': extractField(body, '联系方式'),
-                        '意见/建议': extractField(body, '意见/建议'),
-                        '满意度': extractField(body, '满意度'),
-                        '了解渠道': extractField(body, '了解渠道'),
-                        '推荐意愿': extractField(body, '推荐意愿'),
-                        '有无图片': body.includes('![图片') ? '有' : '无'
-                    };
-                });
-
                 // 创建工作簿
                 const wb = XLSX.utils.book_new();
-                const ws = XLSX.utils.json_to_sheet(rows);
+                const ws = XLSX.utils.json_to_sheet(parsedRows);
 
                 // 设置列宽
                 ws['!cols'] = [
@@ -214,23 +256,12 @@
                 XLSX.writeFile(wb, '问卷结果.xlsx');
 
                 status.className = 'status show success';
-                status.textContent = `✅ 导出成功！共导出 ${rows.length} 条数据`;
+                status.textContent = `✅ 导出成功！共导出 ${parsedRows.length} 条数据`;
 
             } catch (err) {
                 status.className = 'status show error';
                 status.textContent = '❌ 导出失败：' + err.message;
             }
-        }
-
-        // 从 Issue body 中提取字段值
-        function extractField(body, fieldName) {
-            const regex = new RegExp(`\\*\\*${fieldName}：\\*\\*\\s*(.+?)(?:\\n|$)`);
-            const match = body.match(regex);
-            if (!match) return '';
-            let val = match[1].trim();
-            // 去掉括号标记
-            val = val.replace(/（未选择）/, '');
-            return val || '';
         }
 
         // 页面加载后自动加载
